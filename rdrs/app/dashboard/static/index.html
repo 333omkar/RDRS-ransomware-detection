@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDRS — Operations Console</title>
+<style>
+  :root {
+    --bg: #0a0d0c;
+    --panel: #101513;
+    --panel-border: #1f2a26;
+    --text: #d7e4de;
+    --dim: #6b8079;
+    --green: #35d19c;
+    --amber: #e8a23a;
+    --red: #e5484d;
+    --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(53,209,156,0.06), transparent 40%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 12px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .brand h1 { font-size: 15px; letter-spacing: 0.12em; margin: 0; font-weight: 600; text-transform: uppercase; }
+  .brand span { color: var(--dim); font-size: 12px; font-family: var(--mono); }
+  .sim-badge {
+    font-family: var(--mono); font-size: 11px; padding: 5px 10px;
+    border: 1px solid var(--panel-border); border-radius: 4px; color: var(--dim);
+  }
+  main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+  .level-strip {
+    display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .card .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  .card .value { font-family: var(--mono); font-size: 30px; font-weight: 600; }
+  .level-panel { position: relative; overflow: hidden; }
+  .level-panel .value.Normal { color: var(--green); }
+  .level-panel .value.Warning { color: var(--amber); }
+  .level-panel .value.Critical { color: var(--red); }
+
+  .grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-top: 16px; }
+  .panel-title {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--dim); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  th { text-align: left; color: var(--dim); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--panel-border); }
+  td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .tag { padding: 2px 7px; border-radius: 3px; font-size: 10px; text-transform: uppercase; }
+  .tag.Normal { background: rgba(53,209,156,0.15); color: var(--green); }
+  .tag.Warning { background: rgba(232,162,58,0.15); color: var(--amber); }
+  .tag.Critical { background: rgba(229,72,77,0.15); color: var(--red); }
+  .scroll { max-height: 340px; overflow-y: auto; }
+  canvas { width: 100%; height: 160px; }
+  .empty { color: var(--dim); font-family: var(--mono); font-size: 12px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <h1>RDRS <span>Operations Console</span></h1>
+  </div>
+  <div class="sim-badge" id="simBadge">SIMULATION MODE: —</div>
+</header>
+
+<main>
+  <div class="level-strip">
+    <div class="card level-panel">
+      <div class="label">Threat Level</div>
+      <div class="value Normal" id="levelValue">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Score</div>
+      <div class="value" id="scoreValue">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Events Logged</div>
+      <div class="value" id="eventsValue">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Incidents</div>
+      <div class="value" id="incidentsValue">—</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="panel-title">Recent File Events <span id="eventsCount"></span></div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Path</th><th>Entropy</th><th>Time</th></tr></thead>
+          <tbody id="eventsBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="panel-title">Recent Alerts</div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Level</th><th>Score</th><th>Time</th></tr></thead>
+          <tbody id="alertsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="panel-title">Entropy Over Time</div>
+      <canvas id="entropyChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="panel-title">Incidents</div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ID</th><th>Level</th><th>Score</th><th>Suspect</th></tr></thead>
+          <tbody id="incidentsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = ''; // same origin
+
+async function fetchJSON(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error(path + ' failed');
+  return res.json();
+}
+
+function fmtTime(iso) {
+  const withZone = iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z";
+  const d = new Date(withZone);
+  return d.toLocaleTimeString();
+}
+
+function rowsOrEmpty(cols) {
+  return `<tr><td colspan="${cols}" class="empty">No data yet — start the monitor to populate this panel</td></tr>`;
+}
+
+async function refresh() {
+  try {
+    const status = await fetchJSON('/status');
+    document.getElementById('levelValue').textContent = status.current_level;
+    document.getElementById('levelValue').className = 'value ' + status.current_level;
+    document.getElementById('scoreValue').textContent = status.current_score;
+    document.getElementById('eventsValue').textContent = status.total_events;
+    document.getElementById('incidentsValue').textContent = status.total_incidents;
+    document.getElementById('simBadge').textContent =
+      'SIMULATION MODE: ' + (status.simulation_mode ? 'ON' : 'OFF');
+  } catch (e) { /* API not up yet */ }
+
+  try {
+    const events = await fetchJSON('/events?limit=25');
+    const body = document.getElementById('eventsBody');
+    document.getElementById('eventsCount').textContent = events.length + ' shown';
+    body.innerHTML = events.length ? events.map(e => `
+      <tr>
+        <td>${e.event_type}</td>
+        <td title="${e.path}">${e.path.split('/').pop()}</td>
+        <td>${e.entropy != null ? e.entropy.toFixed(2) : '—'}</td>
+        <td>${fmtTime(e.timestamp)}</td>
+      </tr>`).join('') : rowsOrEmpty(4);
+    drawEntropy(events.slice().reverse());
+  } catch (e) {}
+
+  try {
+    const alerts = await fetchJSON('/alerts?limit=15');
+    const body = document.getElementById('alertsBody');
+    body.innerHTML = alerts.length ? alerts.map(a => `
+      <tr>
+        <td><span class="tag ${a.level}">${a.level}</span></td>
+        <td>${a.score}</td>
+        <td>${fmtTime(a.created_at)}</td>
+      </tr>`).join('') : rowsOrEmpty(3);
+  } catch (e) {}
+
+  try {
+    const incidents = await fetchJSON('/incidents?limit=15');
+    const body = document.getElementById('incidentsBody');
+    body.innerHTML = incidents.length ? incidents.map(i => `
+      <tr>
+        <td>#${i.id}</td>
+        <td><span class="tag ${i.level}">${i.level}</span></td>
+        <td>${i.score}</td>
+        <td>${i.suspect_process || '—'}</td>
+      </tr>`).join('') : rowsOrEmpty(4);
+  } catch (e) {}
+}
+
+function drawEntropy(events) {
+  const canvas = document.getElementById('entropyChart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 160 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, rect.width, 160);
+
+  const values = events.map(e => e.entropy).filter(v => v != null);
+  if (!values.length) {
+    ctx.fillStyle = '#6b8079';
+    ctx.font = '12px monospace';
+    ctx.fillText('No entropy data yet', 10, 80);
+    return;
+  }
+
+  const max = 8, pad = 10;
+  const w = rect.width - pad * 2, h = 160 - pad * 2;
+  ctx.strokeStyle = '#35d19c';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = pad + (i / Math.max(values.length - 1, 1)) * w;
+    const y = pad + h - (v / max) * h;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(232,162,58,0.5)';
+  ctx.setLineDash([4, 4]);
+  const thresholdY = pad + h - (7.5 / max) * h;
+  ctx.beginPath();
+  ctx.moveTo(pad, thresholdY);
+  ctx.lineTo(rect.width - pad, thresholdY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+﻿.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.log
+*.db
+*.sqlite
+instance/
+.vscode/
+.idea/
+*.pem
+*.key
+honeypot_files/
+quarantine/
+backups/
+uploads/

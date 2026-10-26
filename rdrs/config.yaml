@@ -1,0 +1,62 @@
+# RDRS Configuration
+# All thresholds and settings live here so the system behaves predictably
+# and can be tuned without touching code.
+
+monitor:
+  # Folders to watch for file activity. Add/remove paths as needed.
+  watch_paths:
+    - "./data/sandbox"
+  recursive: true
+
+detection:
+  # Sliding window (seconds) used to compute burst statistics.
+  window_seconds: 60
+
+  # Signal thresholds within the window.
+  thresholds:
+    files_modified_per_minute: 20      # "rapid encryption" signal
+    renames_per_minute: 10             # "mass rename" signal
+    extension_changes_per_minute: 5    # count of files switching extension
+    high_entropy_value: 7.5            # entropy >= this is "high entropy"
+    high_entropy_file_ratio: 0.5       # fraction of new files that must be high-entropy
+    cpu_spike_percent: 70.0            # process CPU% considered a spike
+
+  # Weighted rule engine: points awarded when a signal fires. Configurable
+  # and transparent — every point in the final score can be explained.
+  weights:
+    rapid_encryption: 40
+    mass_rename: 30
+    high_entropy: 25
+    cpu_spike: 15
+    unknown_program: 10
+
+  # Score bands
+  bands:
+    normal_max: 40      # 0-40   -> Normal
+    warning_max: 70      # 40-70  -> Warning, >70 -> Critical
+
+response:
+  simulation_mode: true   # if true, process termination is only logged, never executed
+  quarantine_dir: "./data/quarantine"
+  known_processes:        # executables considered "known/trusted"; anything else is "unknown"
+    - "python"
+    - "python3"
+    - "explorer.exe"
+    - "bash"
+    - "zsh"
+
+database:
+  path: "./data/rdrs.db"
+
+logging:
+  dir: "./logs"
+  level: "INFO"
+  rotation: "10 MB"
+  retention: "14 days"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+reports:
+  dir: "./data/reports"
